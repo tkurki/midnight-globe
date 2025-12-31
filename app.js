@@ -56,17 +56,27 @@ document.getElementById('resetBtn').addEventListener('click', flyToHelsinki);
 // --- Midnight Line Logic ---
 
 function calculateMidnightLongitude() {
-    const now = new Date();
-    const utcHours = now.getUTCHours();
-    const utcMinutes = now.getUTCMinutes();
-    const utcSeconds = now.getUTCSeconds();
-    const utcDecimal = utcHours + utcMinutes / 60 + utcSeconds / 3600;
-
-    // Calculate longitude where it is midnight
-    // Sun is at (12 - UTC) * 15
-    // Midnight is opposite: ((12 - UTC) * 15) + 180
-    let lon = ((12 - utcDecimal) * 15) + 180;
+    // Use Cesium's clock time which we sync to real time
+    const time = viewer.clock.currentTime;
     
+    // Calculate Sun position to account for Equation of Time (Apparent Solar Time)
+    // This ensures the line is exactly opposite the sun
+    const sunPosInertial = Cesium.Simon1994PlanetaryPositions.computeSunPositionInEarthInertialFrame(time);
+    const icrfToFixed = Cesium.Transforms.computeIcrfToFixedMatrix(time);
+    
+    let lon;
+    
+    if (Cesium.defined(icrfToFixed)) {
+        const sunPosFixed = Cesium.Matrix3.multiplyByVector(icrfToFixed, sunPosInertial, new Cesium.Cartesian3());
+        const sunCartographic = Cesium.Cartographic.fromCartesian(sunPosFixed);
+        lon = Cesium.Math.toDegrees(sunCartographic.longitude) + 180;
+    } else {
+        // Fallback to Mean Solar Time if transform is unavailable
+        const now = Cesium.JulianDate.toDate(time);
+        const utcDecimal = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
+        lon = ((12 - utcDecimal) * 15) + 180;
+    }
+
     // Normalize to [-180, 180]
     while (lon > 180) lon -= 360;
     while (lon < -180) lon += 360;
@@ -96,7 +106,13 @@ const midnightLine = viewer.entities.add({
 // Follow Midnight Logic
 const followCheckbox = document.getElementById('followMidnight');
 
-viewer.clock.onTick.addEventListener(function() {
+viewer.clock.onTick.addEventListener(function(clock) {
+    // Keep Cesium clock synced to system time
+    const now = Cesium.JulianDate.fromDate(new Date());
+    if (Math.abs(Cesium.JulianDate.secondsDifference(now, clock.currentTime)) > 0.5) {
+        clock.currentTime = now;
+    }
+
     if (followCheckbox.checked) {
         const lon = calculateMidnightLongitude();
         
