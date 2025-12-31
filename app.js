@@ -52,3 +52,65 @@ viewer.camera.setView({
 
 // Add event listener to the reset button
 document.getElementById('resetBtn').addEventListener('click', flyToHelsinki);
+
+// --- Midnight Line Logic ---
+
+function calculateMidnightLongitude() {
+    const now = new Date();
+    const utcHours = now.getUTCHours();
+    const utcMinutes = now.getUTCMinutes();
+    const utcSeconds = now.getUTCSeconds();
+    const utcDecimal = utcHours + utcMinutes / 60 + utcSeconds / 3600;
+
+    // Calculate longitude where it is midnight
+    // Sun is at (12 - UTC) * 15
+    // Midnight is opposite: ((12 - UTC) * 15) + 180
+    let lon = ((12 - utcDecimal) * 15) + 180;
+    
+    // Normalize to [-180, 180]
+    while (lon > 180) lon -= 360;
+    while (lon < -180) lon += 360;
+    
+    return lon;
+}
+
+// Create the midnight line entity
+const midnightLine = viewer.entities.add({
+    name: 'Astronomical Midnight',
+    polyline: {
+        // Use a CallbackProperty to update positions dynamically
+        positions: new Cesium.CallbackProperty(function() {
+            const lon = calculateMidnightLongitude();
+            return Cesium.Cartesian3.fromDegreesArray([
+                lon, 90,  // North Pole
+                lon, -90  // South Pole
+            ]);
+        }, false),
+        width: 5,
+        material: new Cesium.PolylineDashMaterialProperty({
+            color: Cesium.Color.BLACK
+        })
+    }
+});
+
+// Follow Midnight Logic
+const followCheckbox = document.getElementById('followMidnight');
+
+viewer.clock.onTick.addEventListener(function() {
+    if (followCheckbox.checked) {
+        const lon = calculateMidnightLongitude();
+        
+        // Smoothly move camera to the new longitude
+        // We keep the current latitude and height
+        const currentCameraPosition = viewer.camera.positionCartographic;
+        
+        viewer.camera.setView({
+            destination: Cesium.Cartesian3.fromRadians(
+                Cesium.Math.toRadians(lon), 
+                currentCameraPosition.latitude, 
+                currentCameraPosition.height
+            )
+        });
+    }
+});
+

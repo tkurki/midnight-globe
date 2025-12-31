@@ -8,10 +8,6 @@ html, body, #cesiumContainer {
 }
 
 #resetBtn {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    z-index: 1000;
     padding: 10px 20px;
     font-size: 16px;
     background-color: rgba(40, 40, 40, 0.8);
@@ -20,8 +16,29 @@ html, body, #cesiumContainer {
     border-radius: 4px;
     cursor: pointer;
     font-family: sans-serif;
+    margin-bottom: 10px;
+    display: block;
 }
 
 #resetBtn:hover {
     background-color: rgba(60, 60, 60, 0.9);
+}
+
+#uiContainer {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+}
+
+#followLabel {
+    color: white;
+    font-family: sans-serif;
+    font-size: 16px;
+    background-color: rgba(40, 40, 40, 0.8);
+    padding: 10px 20px;
+    border-radius: 4px;
+    border: 1px solid #555;
+    display: block;
+    cursor: pointer;
 }
